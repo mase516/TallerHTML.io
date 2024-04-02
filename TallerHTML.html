@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notícies RSS</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        overflow-x: hidden; /* Para ocultar el desbordamiento horizontal */
+    }
+    header {
+        background-color: #333;
+        color: #fff;
+        padding: 10px;
+        text-align: center;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    header h1 {
+        margin: 0;
+    }
+    .search-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .search-container input[type=text] {
+        padding: 10px;
+        margin: 0 10px;
+        width: 50%;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+    .crypto-list-container {
+        overflow: hidden;
+        white-space: nowrap;
+        margin-bottom: 20px;
+    }
+    .crypto-list {
+        display: inline-block;
+        animation: scroll 10s linear infinite;
+    }
+    .crypto-item {
+        display: inline-block;
+        padding: 10px;
+        margin: 0 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    .noticia-container {
+        width: calc(30.5% - 20px);
+        margin: 10px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        display: inline-block;
+        vertical-align: top;
+        box-sizing: border-box;
+    }
+    h2 {
+        font-size: 18px;
+        margin-top: 0;
+    }
+    img {
+        max-width: 100%;
+        height: auto;
+    }
+    p {
+        font-size: 14px;
+        margin-top: 5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .crypto-item span {
+        display: block;
+        font-size: 12px;
+        color: #666;
+    }
+    
+    @keyframes scroll {
+        0% {
+            transform: translateX(-100%); /* Inicia fuera del borde izquierdo */
+        }
+        100% {
+            transform: translateX(100%); /* Termina fuera del borde derecho */
+        }
+    }
+    .photo-of-the-day {
+        max-width: 200px;
+        margin-left: auto;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>Notícies RSS</h1>
+    <div class="search-container">
+        <input type="text" id="search-input" placeholder="Buscar noticias...">
+        <button onclick="buscarNoticias()">Buscar</button>
+    </div>
+    <img src="" alt="Foto del día" class="photo-of-the-day" id="photo-of-the-day">
+</header>
+
+<div class="crypto-list-container">
+    <div class="crypto-list" id="crypto-list"></div>
+</div>
+<div id="contingut-noticies"></div>
+
+<script>
+    // Función para cargar las criptomonedas desde la API de Binance
+    function cargarCriptomonedas() {
+        // URL de la API de Binance para obtener información de precios
+        const apiUrl = "https://api.binance.com/api/v3/ticker/price";
+
+        // Hacemos una petición HTTP GET para obtener la información de precios
+        fetch(apiUrl)
+            .then(response => response.json())
+            .then(data => {
+                // Filtramos y tomamos las primeras diez criptomonedas
+                const top10Cryptos = data.slice(0, 10);
+
+                // Creamos el HTML para cada criptomoneda y lo agregamos al contenedor
+                const cryptoListContainer = document.getElementById("crypto-list");
+                top10Cryptos.forEach(crypto => {
+                    const symbol = crypto.symbol;
+                    const price = parseFloat(crypto.price).toFixed(2);
+                    const cryptoHTML = `
+                        <div class="crypto-item" title="${symbol}: ${price}">
+                            <span>${symbol}</span>
+                            <span>${price}</span>
+                        </div>
+                    `;
+                    cryptoListContainer.innerHTML += cryptoHTML;
+                });
+            })
+            .catch(error => {
+                console.error('Error al cargar las criptomonedas:', error);
+            });
+    }
+
+    // Función para cargar la foto del día
+    function cargarFotoDelDia() {
+        // URL de la foto del día de EFE
+        const photoUrl = "https://www.efe.com/efe/efe_multimedia_foto_50_80/20019552";
+
+        // Asignamos la URL de la foto al elemento de imagen
+        document.getElementById("photo-of-the-day").src = photoUrl;
+    }
+
+    // Función para cargar las noticias desde el feed RSS
+    function cargarNoticias() {
+        // URL del feed RSS de El País
+        const rssURL = "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada";
+
+        // Hacemos una petición HTTP GET para obtener el feed
+        fetch(rssURL)
+            .then(response => response.text())
+            .then(data => {
+                // Parseamos el XML del feed RSS
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data, "text/xml");
+                
+                // Obtenemos todas las entradas (noticias) del feed
+                const items = xmlDoc.querySelectorAll("item");
+
+                // Creamos el HTML para cada noticia y lo agregamos al contenedor
+                const noticiasContainer = document.getElementById("contingut-noticies");
+                items.forEach(item => {
+                    const titulo = item.querySelector("title").textContent;
+                    const enlace = item.querySelector("link").textContent;
+                    const contenido = item.querySelector("content").textContent;
+                    const imagenURL = obtenerImagen(contenido);
+                    const resumen = contenido.length > 100 ? contenido.substring(0, 100) + '...' : contenido;
+                    const noticiaHTML = `
+                        <div class="noticia-container">
+                            <h2>${titulo}</h2>
+                            <img src="${imagenURL}" alt="${titulo}">
+                            <p>${resumen}</p>
+                            <a href="${enlace}" target="_blank">Leer más</a>
+                        </div>
+                    `;
+                    noticiasContainer.innerHTML += noticiaHTML;
+                });
+            })
+            .catch(error => {
+                console.error('Error al cargar el feed RSS:', error);
+            });
+    }
+
+    // Función para obtener la URL de la imagen de la noticia
+    function obtenerImagen(contenido) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(contenido, 'text/html');
+    const imgElement = doc.querySelector('img');
+    if (imgElement) {
+        return imgElement.src;
+    }
+    return "";
+}
+
+    // Función para buscar noticias
+    function buscarNoticias() {
+        const term = document.getElementById("search-input").value.toLowerCase();
+        const noticias = document.querySelectorAll(".noticia-container");
+
+        noticias.forEach(noticia => {
+            const titulo = noticia.querySelector("h2").textContent.toLowerCase();
+            const resumen = noticia.querySelector("p").textContent.toLowerCase();
+
+            if (titulo.includes(term) || resumen.includes(term)) {
+                noticia.style.display = "inline-block";
+            } else {
+                noticia.style.display = "none";
+            }
+        });
+    }
+
+    // Llamamos a las funciones cuando la página se cargue
+    window.onload = function() {
+        cargarCriptomonedas();
+        cargarNoticias();
+        cargarFotoDelDia();
+    };
+</script>
+
+</body>
+</html>
